@@ -124,7 +124,7 @@ public sealed class SharpPcapCaptureService : IPacketCaptureService
                 rawPacket.Timeval.Date,
                 rawPacket.Data.Length,
                 rawPacket.PacketLength,
-                rawPacket.LinkLayerType.ToString(),
+                rawPacket.LinkLayerType,
                 rawPacket.Data.ToArray());
 
             PacketCaptured?.Invoke(this, new PacketCapturedEventArgs(packet));

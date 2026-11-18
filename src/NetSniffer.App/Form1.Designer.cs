@@ -16,9 +16,11 @@ partial class Form1
     private ListView packetListView = null!;
     private ColumnHeader sequenceColumn = null!;
     private ColumnHeader timeColumn = null!;
-    private ColumnHeader linkLayerColumn = null!;
-    private ColumnHeader capturedLengthColumn = null!;
-    private ColumnHeader originalLengthColumn = null!;
+    private ColumnHeader sourceColumn = null!;
+    private ColumnHeader destinationColumn = null!;
+    private ColumnHeader protocolColumn = null!;
+    private ColumnHeader lengthColumn = null!;
+    private ColumnHeader summaryColumn = null!;
     private StatusStrip statusStrip = null!;
     private ToolStripStatusLabel statusTextLabel = null!;
     private ToolStripStatusLabel statusSpringLabel = null!;
@@ -49,9 +51,11 @@ partial class Form1
         packetListView = new ListView();
         sequenceColumn = new ColumnHeader();
         timeColumn = new ColumnHeader();
-        linkLayerColumn = new ColumnHeader();
-        capturedLengthColumn = new ColumnHeader();
-        originalLengthColumn = new ColumnHeader();
+        sourceColumn = new ColumnHeader();
+        destinationColumn = new ColumnHeader();
+        protocolColumn = new ColumnHeader();
+        lengthColumn = new ColumnHeader();
+        summaryColumn = new ColumnHeader();
         statusStrip = new StatusStrip();
         statusTextLabel = new ToolStripStatusLabel();
         statusSpringLabel = new ToolStripStatusLabel();
@@ -117,9 +121,11 @@ partial class Form1
         packetListView.Columns.AddRange([
             sequenceColumn,
             timeColumn,
-            linkLayerColumn,
-            capturedLengthColumn,
-            originalLengthColumn,
+            sourceColumn,
+            destinationColumn,
+            protocolColumn,
+            lengthColumn,
+            summaryColumn,
         ]);
         packetListView.Dock = DockStyle.Fill;
         packetListView.FullRowSelect = true;
@@ -131,12 +137,16 @@ partial class Form1
         sequenceColumn.Width = 90;
         timeColumn.Text = "时间";
         timeColumn.Width = 140;
-        linkLayerColumn.Text = "链路层";
-        linkLayerColumn.Width = 180;
-        capturedLengthColumn.Text = "捕获长度";
-        capturedLengthColumn.Width = 120;
-        originalLengthColumn.Text = "原始长度";
-        originalLengthColumn.Width = 120;
+        sourceColumn.Text = "源地址";
+        sourceColumn.Width = 180;
+        destinationColumn.Text = "目的地址";
+        destinationColumn.Width = 180;
+        protocolColumn.Text = "协议";
+        protocolColumn.Width = 90;
+        lengthColumn.Text = "长度";
+        lengthColumn.Width = 80;
+        summaryColumn.Text = "信息";
+        summaryColumn.Width = 420;
 
         statusStrip.Dock = DockStyle.Fill;
         statusStrip.Items.AddRange([statusTextLabel, statusSpringLabel, packetCountLabel]);

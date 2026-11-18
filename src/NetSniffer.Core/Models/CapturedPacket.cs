@@ -1,3 +1,5 @@
+using PacketDotNet;
+
 namespace NetSniffer.Core.Models;
 
 /// <summary>
@@ -7,6 +9,6 @@ public sealed record CapturedPacket(
     DateTime Timestamp,
     int CapturedLength,
     int OriginalLength,
-    string LinkLayerType,
+    LinkLayers LinkLayerType,
     byte[] Data);
 

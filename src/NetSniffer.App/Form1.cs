@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using NetSniffer.Core.Models;
+using NetSniffer.Core.Parsing;
 using NetSniffer.Core.Services;
 
 namespace NetSniffer.App;
@@ -13,22 +14,25 @@ public partial class Form1 : Form
 
     private readonly ICaptureDeviceCatalog _deviceCatalog;
     private readonly IPacketCaptureService _captureService;
+    private readonly IPacketParser _packetParser;
     private readonly ConcurrentQueue<PacketDisplayItem> _pendingPackets = new();
     private long _capturedPacketCount;
     private long _droppedDisplayPacketCount;
     private int _pendingPacketCount;
 
     public Form1()
-        : this(new SharpPcapDeviceCatalog(), new SharpPcapCaptureService())
+        : this(new SharpPcapDeviceCatalog(), new SharpPcapCaptureService(), new PacketParser())
     {
     }
 
     internal Form1(
         ICaptureDeviceCatalog deviceCatalog,
-        IPacketCaptureService captureService)
+        IPacketCaptureService captureService,
+        IPacketParser packetParser)
     {
         _deviceCatalog = deviceCatalog;
         _captureService = captureService;
+        _packetParser = packetParser;
 
         InitializeComponent();
 
@@ -96,6 +100,7 @@ public partial class Form1 : Form
     private void HandlePacketCaptured(object? sender, PacketCapturedEventArgs e)
     {
         var sequenceNumber = Interlocked.Increment(ref _capturedPacketCount);
+        var parsedPacket = _packetParser.Parse(e.Packet);
         var pendingCount = Interlocked.Increment(ref _pendingPacketCount);
 
         if (pendingCount > MaximumPendingPackets)
@@ -105,7 +110,7 @@ public partial class Form1 : Form
             return;
         }
 
-        _pendingPackets.Enqueue(new PacketDisplayItem(sequenceNumber, e.Packet));
+        _pendingPackets.Enqueue(new PacketDisplayItem(sequenceNumber, parsedPacket));
     }
 
     private void HandleCaptureStopped(object? sender, CaptureStoppedEventArgs e)
@@ -267,9 +272,11 @@ public partial class Form1 : Form
         var packet = displayItem.Packet;
         var item = new ListViewItem(displayItem.SequenceNumber.ToString(CultureInfo.InvariantCulture));
         item.SubItems.Add(packet.Timestamp.ToString("HH:mm:ss.fff", CultureInfo.CurrentCulture));
-        item.SubItems.Add(packet.LinkLayerType);
+        item.SubItems.Add(packet.SourceAddress);
+        item.SubItems.Add(packet.DestinationAddress);
+        item.SubItems.Add(packet.ProtocolName);
         item.SubItems.Add(packet.CapturedLength.ToString(CultureInfo.InvariantCulture));
-        item.SubItems.Add(packet.OriginalLength.ToString(CultureInfo.InvariantCulture));
+        item.SubItems.Add(packet.Summary);
         packetListView.Items.Add(item);
     }
 
@@ -283,5 +290,5 @@ public partial class Form1 : Form
             MessageBoxIcon.Error);
     }
 
-    private sealed record PacketDisplayItem(long SequenceNumber, CapturedPacket Packet);
+    private sealed record PacketDisplayItem(long SequenceNumber, PacketRecord Packet);
 }
