@@ -1,38 +1,165 @@
-﻿namespace NetSniffer.App;
+#nullable enable
+
+namespace NetSniffer.App;
 
 partial class Form1
 {
-    /// <summary>
-    ///  Required designer variable.
-    /// </summary>
-    private System.ComponentModel.IContainer components = null;
+    private System.ComponentModel.IContainer? components = null;
+    private TableLayoutPanel rootLayout = null!;
+    private FlowLayoutPanel commandPanel = null!;
+    private Label deviceLabel = null!;
+    private ComboBox deviceComboBox = null!;
+    private Button refreshButton = null!;
+    private Button startButton = null!;
+    private Button stopButton = null!;
+    private Button clearButton = null!;
+    private ListView packetListView = null!;
+    private ColumnHeader sequenceColumn = null!;
+    private ColumnHeader timeColumn = null!;
+    private ColumnHeader linkLayerColumn = null!;
+    private ColumnHeader capturedLengthColumn = null!;
+    private ColumnHeader originalLengthColumn = null!;
+    private StatusStrip statusStrip = null!;
+    private ToolStripStatusLabel statusTextLabel = null!;
+    private ToolStripStatusLabel statusSpringLabel = null!;
+    private ToolStripStatusLabel packetCountLabel = null!;
+    private System.Windows.Forms.Timer uiTimer = null!;
 
-    /// <summary>
-    ///  Clean up any resources being used.
-    /// </summary>
-    /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
     protected override void Dispose(bool disposing)
     {
-        if (disposing && (components != null))
+        if (disposing)
         {
-            components.Dispose();
+            components?.Dispose();
         }
+
         base.Dispose(disposing);
     }
 
-    #region Windows Form Designer generated code
-
-    /// <summary>
-    ///  Required method for Designer support - do not modify
-    ///  the contents of this method with the code editor.
-    /// </summary>
     private void InitializeComponent()
     {
-        this.components = new System.ComponentModel.Container();
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(800, 450);
-        this.Text = "Form1";
-    }
+        components = new System.ComponentModel.Container();
+        rootLayout = new TableLayoutPanel();
+        commandPanel = new FlowLayoutPanel();
+        deviceLabel = new Label();
+        deviceComboBox = new ComboBox();
+        refreshButton = new Button();
+        startButton = new Button();
+        stopButton = new Button();
+        clearButton = new Button();
+        packetListView = new ListView();
+        sequenceColumn = new ColumnHeader();
+        timeColumn = new ColumnHeader();
+        linkLayerColumn = new ColumnHeader();
+        capturedLengthColumn = new ColumnHeader();
+        originalLengthColumn = new ColumnHeader();
+        statusStrip = new StatusStrip();
+        statusTextLabel = new ToolStripStatusLabel();
+        statusSpringLabel = new ToolStripStatusLabel();
+        packetCountLabel = new ToolStripStatusLabel();
+        uiTimer = new System.Windows.Forms.Timer(components);
+        rootLayout.SuspendLayout();
+        commandPanel.SuspendLayout();
+        statusStrip.SuspendLayout();
+        SuspendLayout();
 
-    #endregion
+        rootLayout.ColumnCount = 1;
+        rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        rootLayout.Controls.Add(commandPanel, 0, 0);
+        rootLayout.Controls.Add(packetListView, 0, 1);
+        rootLayout.Controls.Add(statusStrip, 0, 2);
+        rootLayout.Dock = DockStyle.Fill;
+        rootLayout.RowCount = 3;
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+
+        commandPanel.Controls.Add(deviceLabel);
+        commandPanel.Controls.Add(deviceComboBox);
+        commandPanel.Controls.Add(refreshButton);
+        commandPanel.Controls.Add(startButton);
+        commandPanel.Controls.Add(stopButton);
+        commandPanel.Controls.Add(clearButton);
+        commandPanel.Dock = DockStyle.Fill;
+        commandPanel.FlowDirection = FlowDirection.LeftToRight;
+        commandPanel.Padding = new Padding(10, 11, 10, 8);
+        commandPanel.WrapContents = false;
+
+        deviceLabel.AutoSize = true;
+        deviceLabel.Margin = new Padding(0, 7, 8, 0);
+        deviceLabel.Text = "网卡：";
+
+        deviceComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        deviceComboBox.Margin = new Padding(0, 2, 8, 0);
+        deviceComboBox.Size = new Size(500, 25);
+
+        refreshButton.AutoSize = true;
+        refreshButton.Margin = new Padding(0, 0, 8, 0);
+        refreshButton.Text = "刷新";
+        refreshButton.UseVisualStyleBackColor = true;
+
+        startButton.AutoSize = true;
+        startButton.Enabled = false;
+        startButton.Margin = new Padding(0, 0, 8, 0);
+        startButton.Text = "开始抓包";
+        startButton.UseVisualStyleBackColor = true;
+
+        stopButton.AutoSize = true;
+        stopButton.Enabled = false;
+        stopButton.Margin = new Padding(0, 0, 8, 0);
+        stopButton.Text = "停止";
+        stopButton.UseVisualStyleBackColor = true;
+
+        clearButton.AutoSize = true;
+        clearButton.Margin = new Padding(0);
+        clearButton.Text = "清空";
+        clearButton.UseVisualStyleBackColor = true;
+
+        packetListView.Columns.AddRange([
+            sequenceColumn,
+            timeColumn,
+            linkLayerColumn,
+            capturedLengthColumn,
+            originalLengthColumn,
+        ]);
+        packetListView.Dock = DockStyle.Fill;
+        packetListView.FullRowSelect = true;
+        packetListView.GridLines = true;
+        packetListView.HideSelection = false;
+        packetListView.View = View.Details;
+
+        sequenceColumn.Text = "序号";
+        sequenceColumn.Width = 90;
+        timeColumn.Text = "时间";
+        timeColumn.Width = 140;
+        linkLayerColumn.Text = "链路层";
+        linkLayerColumn.Width = 180;
+        capturedLengthColumn.Text = "捕获长度";
+        capturedLengthColumn.Width = 120;
+        originalLengthColumn.Text = "原始长度";
+        originalLengthColumn.Width = 120;
+
+        statusStrip.Dock = DockStyle.Fill;
+        statusStrip.Items.AddRange([statusTextLabel, statusSpringLabel, packetCountLabel]);
+        statusTextLabel.Text = "准备就绪";
+        statusSpringLabel.Spring = true;
+        packetCountLabel.Text = "已捕获：0";
+
+        uiTimer.Interval = 200;
+
+        AutoScaleDimensions = new SizeF(7F, 17F);
+        AutoScaleMode = AutoScaleMode.Font;
+        ClientSize = new Size(1_100, 650);
+        Controls.Add(rootLayout);
+        MinimumSize = new Size(850, 450);
+        Name = "Form1";
+        StartPosition = FormStartPosition.CenterScreen;
+        Text = "NetSniffer - 网络嗅探器";
+        rootLayout.ResumeLayout(false);
+        rootLayout.PerformLayout();
+        commandPanel.ResumeLayout(false);
+        commandPanel.PerformLayout();
+        statusStrip.ResumeLayout(false);
+        statusStrip.PerformLayout();
+        ResumeLayout(false);
+    }
 }
