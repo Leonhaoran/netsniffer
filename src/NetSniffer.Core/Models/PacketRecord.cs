@@ -7,6 +7,7 @@ public sealed record PacketRecord(
     ushort? SourcePort,
     ushort? DestinationPort,
     PacketProtocol Protocol,
+    PacketNetworkLayer NetworkLayer,
     int CapturedLength,
     int OriginalLength,
     string Summary,

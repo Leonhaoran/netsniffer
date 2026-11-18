@@ -73,11 +73,27 @@ public sealed class PacketParser : IPacketParser
             sourcePort,
             destinationPort,
             protocol,
+            GetNetworkLayer(ipPacket, arpPacket),
             capturedPacket.CapturedLength,
             capturedPacket.OriginalLength,
             summary,
             capturedPacket.LinkLayerType.ToString(),
             capturedPacket.Data);
+    }
+
+    private static PacketNetworkLayer GetNetworkLayer(IPPacket? ipPacket, ArpPacket? arpPacket)
+    {
+        if (arpPacket is not null)
+        {
+            return PacketNetworkLayer.Arp;
+        }
+
+        return ipPacket switch
+        {
+            IPv4Packet => PacketNetworkLayer.IPv4,
+            IPv6Packet => PacketNetworkLayer.IPv6,
+            _ => PacketNetworkLayer.Unknown,
+        };
     }
 
     private static (PacketProtocol Protocol, string Summary) ClassifyPacket(
@@ -213,6 +229,7 @@ public sealed class PacketParser : IPacketParser
             null,
             null,
             PacketProtocol.Unknown,
+            PacketNetworkLayer.Unknown,
             capturedPacket.CapturedLength,
             capturedPacket.OriginalLength,
             summary,

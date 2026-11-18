@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Net;
+using NetSniffer.Core.Filtering;
 using NetSniffer.Core.Models;
 using NetSniffer.Core.Parsing;
 using NetSniffer.Core.Services;
@@ -11,14 +13,17 @@ public partial class Form1 : Form
     private const int MaximumVisiblePackets = 2_000;
     private const int MaximumPendingPackets = 5_000;
     private const int MaximumPacketsPerRefresh = 250;
+    private const int MaximumRetainedPackets = 10_000;
 
     private readonly ICaptureDeviceCatalog _deviceCatalog;
     private readonly IPacketCaptureService _captureService;
     private readonly IPacketParser _packetParser;
     private readonly ConcurrentQueue<PacketDisplayItem> _pendingPackets = new();
+    private readonly List<PacketDisplayItem> _capturedPackets = [];
+    private PacketFilter _activeFilter = PacketFilter.All;
     private long _capturedPacketCount;
     private long _droppedDisplayPacketCount;
-    private int _pendingPacketCount;
+    private int _acceptPackets;
 
     public Form1()
         : this(new SharpPcapDeviceCatalog(), new SharpPcapCaptureService(), new PacketParser())
@@ -35,6 +40,7 @@ public partial class Form1 : Form
         _packetParser = packetParser;
 
         InitializeComponent();
+        InitializeFilterControls();
 
         Shown += HandleShown;
         FormClosing += HandleFormClosing;
@@ -42,6 +48,8 @@ public partial class Form1 : Form
         startButton.Click += HandleStartClick;
         stopButton.Click += HandleStopClick;
         clearButton.Click += HandleClearClick;
+        applyFilterButton.Click += HandleApplyFilterClick;
+        resetFilterButton.Click += HandleResetFilterClick;
         uiTimer.Tick += HandleUiTimerTick;
 
         _captureService.PacketCaptured += HandlePacketCaptured;
@@ -51,7 +59,6 @@ public partial class Form1 : Form
 
     private async void HandleShown(object? sender, EventArgs e)
     {
-        uiTimer.Start();
         await RefreshDevicesAsync();
     }
 
@@ -76,12 +83,16 @@ public partial class Form1 : Form
         try
         {
             ClearPacketDisplay();
+            Interlocked.Exchange(ref _acceptPackets, 1);
+            uiTimer.Start();
             _captureService.Start(selectedDevice.Name);
             SetCaptureState(true);
             statusTextLabel.Text = $"正在抓包：{selectedDevice.Description}";
         }
         catch (Exception exception)
         {
+            Interlocked.Exchange(ref _acceptPackets, 0);
+            uiTimer.Stop();
             SetCaptureState(false);
             ShowCaptureError("无法开始抓包", exception);
         }
@@ -97,20 +108,41 @@ public partial class Form1 : Form
         ClearPacketDisplay();
     }
 
+    private void HandleApplyFilterClick(object? sender, EventArgs e)
+    {
+        ApplyFilterFromControls();
+    }
+
+    private void HandleResetFilterClick(object? sender, EventArgs e)
+    {
+        protocolFilterComboBox.SelectedIndex = 0;
+        ipFilterTextBox.Clear();
+        portFilterTextBox.Clear();
+        _activeFilter = PacketFilter.All;
+        ApplyFilterToVisiblePackets();
+    }
+
     private void HandlePacketCaptured(object? sender, PacketCapturedEventArgs e)
     {
-        var sequenceNumber = Interlocked.Increment(ref _capturedPacketCount);
-        var parsedPacket = _packetParser.Parse(e.Packet);
-        var pendingCount = Interlocked.Increment(ref _pendingPacketCount);
-
-        if (pendingCount > MaximumPendingPackets)
+        if (Volatile.Read(ref _acceptPackets) == 0)
         {
-            Interlocked.Decrement(ref _pendingPacketCount);
-            Interlocked.Increment(ref _droppedDisplayPacketCount);
             return;
         }
 
+        var parsedPacket = _packetParser.Parse(e.Packet);
+
+        if (Volatile.Read(ref _acceptPackets) == 0)
+        {
+            return;
+        }
+
+        var sequenceNumber = Interlocked.Increment(ref _capturedPacketCount);
         _pendingPackets.Enqueue(new PacketDisplayItem(sequenceNumber, parsedPacket));
+
+        while (_pendingPackets.Count > MaximumPendingPackets && _pendingPackets.TryDequeue(out _))
+        {
+            Interlocked.Increment(ref _droppedDisplayPacketCount);
+        }
     }
 
     private void HandleCaptureStopped(object? sender, CaptureStoppedEventArgs e)
@@ -122,6 +154,9 @@ public partial class Form1 : Form
 
         BeginInvoke(() =>
         {
+            Interlocked.Exchange(ref _acceptPackets, 0);
+            uiTimer.Stop();
+
             try
             {
                 // Also releases the device when SharpPcap stops because of a capture error.
@@ -134,6 +169,7 @@ public partial class Form1 : Form
                 return;
             }
 
+            DrainPendingPackets(int.MaxValue);
             SetCaptureState(false);
             statusTextLabel.Text = e.CompletedWithoutError ? "抓包已停止" : "抓包异常停止";
         });
@@ -151,34 +187,7 @@ public partial class Form1 : Form
 
     private void HandleUiTimerTick(object? sender, EventArgs e)
     {
-        packetListView.BeginUpdate();
-
-        try
-        {
-            var processed = 0;
-            while (processed < MaximumPacketsPerRefresh &&
-                   _pendingPackets.TryDequeue(out var displayItem))
-            {
-                Interlocked.Decrement(ref _pendingPacketCount);
-                AddPacketToList(displayItem);
-                processed++;
-            }
-
-            while (packetListView.Items.Count > MaximumVisiblePackets)
-            {
-                packetListView.Items.RemoveAt(0);
-            }
-        }
-        finally
-        {
-            packetListView.EndUpdate();
-        }
-
-        var captured = Interlocked.Read(ref _capturedPacketCount);
-        var dropped = Interlocked.Read(ref _droppedDisplayPacketCount);
-        packetCountLabel.Text = dropped == 0
-            ? $"已捕获：{captured:N0}"
-            : $"已捕获：{captured:N0}，界面丢弃：{dropped:N0}";
+        DrainPendingPackets(MaximumPacketsPerRefresh);
     }
 
     private void HandleFormClosing(object? sender, FormClosingEventArgs e)
@@ -227,9 +236,13 @@ public partial class Form1 : Form
 
     private void StopCapture(bool showErrorDialog)
     {
+        Interlocked.Exchange(ref _acceptPackets, 0);
+        uiTimer.Stop();
+
         try
         {
             _captureService.StopCapture();
+            DrainPendingPackets(int.MaxValue);
             SetCaptureState(false);
             statusTextLabel.Text = "抓包已停止";
         }
@@ -256,6 +269,7 @@ public partial class Form1 : Form
     private void ClearPacketDisplay()
     {
         packetListView.Items.Clear();
+        _capturedPackets.Clear();
         Interlocked.Exchange(ref _capturedPacketCount, 0);
         Interlocked.Exchange(ref _droppedDisplayPacketCount, 0);
 
@@ -263,8 +277,7 @@ public partial class Form1 : Form
         {
         }
 
-        Interlocked.Exchange(ref _pendingPacketCount, 0);
-        packetCountLabel.Text = "已捕获：0";
+        UpdatePacketCounters();
     }
 
     private void AddPacketToList(PacketDisplayItem displayItem)
@@ -280,6 +293,121 @@ public partial class Form1 : Form
         packetListView.Items.Add(item);
     }
 
+    private void DrainPendingPackets(int maximumPackets)
+    {
+        packetListView.BeginUpdate();
+
+        try
+        {
+            var processed = 0;
+            while (processed < maximumPackets && _pendingPackets.TryDequeue(out var displayItem))
+            {
+                _capturedPackets.Add(displayItem);
+                if (_activeFilter.Matches(displayItem.Packet))
+                {
+                    AddPacketToList(displayItem);
+                }
+
+                processed++;
+            }
+
+            if (_capturedPackets.Count > MaximumRetainedPackets)
+            {
+                _capturedPackets.RemoveRange(0, _capturedPackets.Count - MaximumRetainedPackets);
+            }
+
+            while (packetListView.Items.Count > MaximumVisiblePackets)
+            {
+                packetListView.Items.RemoveAt(0);
+            }
+        }
+        finally
+        {
+            packetListView.EndUpdate();
+        }
+
+        UpdatePacketCounters();
+    }
+
+    private void InitializeFilterControls()
+    {
+        protocolFilterComboBox.DisplayMember = nameof(FilterOption.DisplayName);
+        protocolFilterComboBox.DataSource = new List<FilterOption>
+        {
+            new(ProtocolFilter.All, "全部"),
+            new(ProtocolFilter.Http, "HTTP"),
+            new(ProtocolFilter.Tcp, "TCP"),
+            new(ProtocolFilter.Udp, "UDP"),
+            new(ProtocolFilter.IPv4, "IPv4"),
+            new(ProtocolFilter.IPv6, "IPv6"),
+            new(ProtocolFilter.Icmp, "ICMP"),
+            new(ProtocolFilter.Arp, "ARP"),
+        };
+    }
+
+    private void ApplyFilterFromControls()
+    {
+        var protocol = protocolFilterComboBox.SelectedItem is FilterOption option
+            ? option.Protocol
+            : ProtocolFilter.All;
+
+        IPAddress? ipAddress = null;
+        var ipText = ipFilterTextBox.Text.Trim();
+        if (ipText.Length > 0 && !IPAddress.TryParse(ipText, out ipAddress))
+        {
+            MessageBox.Show(this, "请输入有效的 IPv4 或 IPv6 地址。", "IP 地址无效", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        ushort? port = null;
+        var portText = portFilterTextBox.Text.Trim();
+        if (portText.Length > 0)
+        {
+            if (!ushort.TryParse(portText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedPort))
+            {
+                MessageBox.Show(this, "端口必须是 0 到 65535 之间的整数。", "端口无效", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            port = parsedPort;
+        }
+
+        _activeFilter = new PacketFilter(protocol, ipAddress, port);
+        ApplyFilterToVisiblePackets();
+    }
+
+    private void ApplyFilterToVisiblePackets()
+    {
+        packetListView.BeginUpdate();
+        packetListView.Items.Clear();
+
+        try
+        {
+            foreach (var displayItem in _capturedPackets
+                         .Where(item => _activeFilter.Matches(item.Packet))
+                         .TakeLast(MaximumVisiblePackets))
+            {
+                AddPacketToList(displayItem);
+            }
+        }
+        finally
+        {
+            packetListView.EndUpdate();
+        }
+
+        UpdatePacketCounters();
+    }
+
+    private void UpdatePacketCounters()
+    {
+        var captured = Interlocked.Read(ref _capturedPacketCount);
+        var dropped = Interlocked.Read(ref _droppedDisplayPacketCount);
+        packetCountLabel.Text = dropped == 0
+            ? $"已捕获：{captured:N0}，显示：{packetListView.Items.Count:N0}"
+            : $"已捕获：{captured:N0}，显示：{packetListView.Items.Count:N0}，界面丢弃：{dropped:N0}";
+        filterResultLabel.Text = $"保留：{_capturedPackets.Count:N0}";
+    }
+
     private void ShowCaptureError(string title, Exception exception)
     {
         MessageBox.Show(
@@ -291,4 +419,6 @@ public partial class Form1 : Form
     }
 
     private sealed record PacketDisplayItem(long SequenceNumber, PacketRecord Packet);
+
+    private sealed record FilterOption(ProtocolFilter Protocol, string DisplayName);
 }

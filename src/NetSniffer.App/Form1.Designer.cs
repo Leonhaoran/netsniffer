@@ -13,6 +13,16 @@ partial class Form1
     private Button startButton = null!;
     private Button stopButton = null!;
     private Button clearButton = null!;
+    private FlowLayoutPanel filterPanel = null!;
+    private Label protocolFilterLabel = null!;
+    private ComboBox protocolFilterComboBox = null!;
+    private Label ipFilterLabel = null!;
+    private TextBox ipFilterTextBox = null!;
+    private Label portFilterLabel = null!;
+    private TextBox portFilterTextBox = null!;
+    private Button applyFilterButton = null!;
+    private Button resetFilterButton = null!;
+    private Label filterResultLabel = null!;
     private ListView packetListView = null!;
     private ColumnHeader sequenceColumn = null!;
     private ColumnHeader timeColumn = null!;
@@ -48,6 +58,16 @@ partial class Form1
         startButton = new Button();
         stopButton = new Button();
         clearButton = new Button();
+        filterPanel = new FlowLayoutPanel();
+        protocolFilterLabel = new Label();
+        protocolFilterComboBox = new ComboBox();
+        ipFilterLabel = new Label();
+        ipFilterTextBox = new TextBox();
+        portFilterLabel = new Label();
+        portFilterTextBox = new TextBox();
+        applyFilterButton = new Button();
+        resetFilterButton = new Button();
+        filterResultLabel = new Label();
         packetListView = new ListView();
         sequenceColumn = new ColumnHeader();
         timeColumn = new ColumnHeader();
@@ -63,17 +83,20 @@ partial class Form1
         uiTimer = new System.Windows.Forms.Timer(components);
         rootLayout.SuspendLayout();
         commandPanel.SuspendLayout();
+        filterPanel.SuspendLayout();
         statusStrip.SuspendLayout();
         SuspendLayout();
 
         rootLayout.ColumnCount = 1;
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         rootLayout.Controls.Add(commandPanel, 0, 0);
-        rootLayout.Controls.Add(packetListView, 0, 1);
-        rootLayout.Controls.Add(statusStrip, 0, 2);
+        rootLayout.Controls.Add(filterPanel, 0, 1);
+        rootLayout.Controls.Add(packetListView, 0, 2);
+        rootLayout.Controls.Add(statusStrip, 0, 3);
         rootLayout.Dock = DockStyle.Fill;
-        rootLayout.RowCount = 3;
+        rootLayout.RowCount = 4;
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
 
@@ -118,6 +141,57 @@ partial class Form1
         clearButton.Text = "清空";
         clearButton.UseVisualStyleBackColor = true;
 
+        filterPanel.Controls.Add(protocolFilterLabel);
+        filterPanel.Controls.Add(protocolFilterComboBox);
+        filterPanel.Controls.Add(ipFilterLabel);
+        filterPanel.Controls.Add(ipFilterTextBox);
+        filterPanel.Controls.Add(portFilterLabel);
+        filterPanel.Controls.Add(portFilterTextBox);
+        filterPanel.Controls.Add(applyFilterButton);
+        filterPanel.Controls.Add(resetFilterButton);
+        filterPanel.Controls.Add(filterResultLabel);
+        filterPanel.Dock = DockStyle.Fill;
+        filterPanel.Padding = new Padding(10, 7, 10, 6);
+        filterPanel.WrapContents = false;
+
+        protocolFilterLabel.AutoSize = true;
+        protocolFilterLabel.Margin = new Padding(0, 6, 6, 0);
+        protocolFilterLabel.Text = "协议：";
+
+        protocolFilterComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        protocolFilterComboBox.Margin = new Padding(0, 1, 12, 0);
+        protocolFilterComboBox.Size = new Size(105, 25);
+
+        ipFilterLabel.AutoSize = true;
+        ipFilterLabel.Margin = new Padding(0, 6, 6, 0);
+        ipFilterLabel.Text = "IP：";
+
+        ipFilterTextBox.Margin = new Padding(0, 1, 12, 0);
+        ipFilterTextBox.PlaceholderText = "源或目的 IP";
+        ipFilterTextBox.Size = new Size(190, 23);
+
+        portFilterLabel.AutoSize = true;
+        portFilterLabel.Margin = new Padding(0, 6, 6, 0);
+        portFilterLabel.Text = "端口：";
+
+        portFilterTextBox.Margin = new Padding(0, 1, 12, 0);
+        portFilterTextBox.PlaceholderText = "0-65535";
+        portFilterTextBox.Size = new Size(90, 23);
+
+        applyFilterButton.AutoSize = true;
+        applyFilterButton.Margin = new Padding(0, 0, 8, 0);
+        applyFilterButton.Text = "应用过滤";
+        applyFilterButton.UseVisualStyleBackColor = true;
+
+        resetFilterButton.AutoSize = true;
+        resetFilterButton.Margin = new Padding(0, 0, 16, 0);
+        resetFilterButton.Text = "重置";
+        resetFilterButton.UseVisualStyleBackColor = true;
+
+        filterResultLabel.AutoSize = true;
+        filterResultLabel.Margin = new Padding(0, 6, 0, 0);
+        filterResultLabel.Text = "保留：0";
+
         packetListView.Columns.AddRange([
             sequenceColumn,
             timeColumn,
@@ -160,7 +234,7 @@ partial class Form1
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(1_100, 650);
         Controls.Add(rootLayout);
-        MinimumSize = new Size(850, 450);
+        MinimumSize = new Size(950, 500);
         Name = "Form1";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "NetSniffer - 网络嗅探器";
@@ -168,6 +242,8 @@ partial class Form1
         rootLayout.PerformLayout();
         commandPanel.ResumeLayout(false);
         commandPanel.PerformLayout();
+        filterPanel.ResumeLayout(false);
+        filterPanel.PerformLayout();
         statusStrip.ResumeLayout(false);
         statusStrip.PerformLayout();
         ResumeLayout(false);

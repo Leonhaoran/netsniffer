@@ -19,6 +19,7 @@ public class PacketParserTests
         var result = _parser.Parse(capturedPacket);
 
         Assert.Equal(PacketProtocol.Tcp, result.Protocol);
+        Assert.Equal(PacketNetworkLayer.IPv4, result.NetworkLayer);
         Assert.Equal("192.0.2.10", result.SourceAddress);
         Assert.Equal("198.51.100.20", result.DestinationAddress);
         Assert.Equal((ushort)12_345, result.SourcePort);
