@@ -1,0 +1,73 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+publish/
+
+# Visual Studio and IDE user state
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# .NET and NuGet
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts.json
+
+# Test and coverage results
+TestResults/
+coverage/
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+
+# Logs, dumps, and temporary files
+logs/
+*.log
+*.dmp
+*.tmp
+*.temp
+*.bak
+*.swp
+~$*
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.local.json
+*.pfx
+*.p12
+*.key
+*.pem
+
+# Packet captures may contain private network traffic
+captures/
+*.pcap
+*.pcapng
+!samples/**/*.pcap
+!samples/**/*.pcapng
+
+# Generated documentation and video assets
+docs/generated/
+*.mp4
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
