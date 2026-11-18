@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
+using NetSniffer.Core.Details;
 using NetSniffer.Core.Filtering;
 using NetSniffer.Core.Models;
 using NetSniffer.Core.Parsing;
@@ -18,6 +19,7 @@ public partial class Form1 : Form
     private readonly ICaptureDeviceCatalog _deviceCatalog;
     private readonly IPacketCaptureService _captureService;
     private readonly IPacketParser _packetParser;
+    private readonly IPacketDetailParser _packetDetailParser;
     private readonly ConcurrentQueue<PacketDisplayItem> _pendingPackets = new();
     private readonly List<PacketDisplayItem> _capturedPackets = [];
     private PacketFilter _activeFilter = PacketFilter.All;
@@ -26,18 +28,24 @@ public partial class Form1 : Form
     private int _acceptPackets;
 
     public Form1()
-        : this(new SharpPcapDeviceCatalog(), new SharpPcapCaptureService(), new PacketParser())
+        : this(
+            new SharpPcapDeviceCatalog(),
+            new SharpPcapCaptureService(),
+            new PacketParser(),
+            new PacketDetailParser())
     {
     }
 
     internal Form1(
         ICaptureDeviceCatalog deviceCatalog,
         IPacketCaptureService captureService,
-        IPacketParser packetParser)
+        IPacketParser packetParser,
+        IPacketDetailParser packetDetailParser)
     {
         _deviceCatalog = deviceCatalog;
         _captureService = captureService;
         _packetParser = packetParser;
+        _packetDetailParser = packetDetailParser;
 
         InitializeComponent();
         InitializeFilterControls();
@@ -50,6 +58,7 @@ public partial class Form1 : Form
         clearButton.Click += HandleClearClick;
         applyFilterButton.Click += HandleApplyFilterClick;
         resetFilterButton.Click += HandleResetFilterClick;
+        packetListView.SelectedIndexChanged += HandlePacketSelectionChanged;
         uiTimer.Tick += HandleUiTimerTick;
 
         _captureService.PacketCaptured += HandlePacketCaptured;
@@ -59,6 +68,7 @@ public partial class Form1 : Form
 
     private async void HandleShown(object? sender, EventArgs e)
     {
+        ApplyInitialSplitterPositions();
         await RefreshDevicesAsync();
     }
 
@@ -120,6 +130,11 @@ public partial class Form1 : Form
         portFilterTextBox.Clear();
         _activeFilter = PacketFilter.All;
         ApplyFilterToVisiblePackets();
+    }
+
+    private void HandlePacketSelectionChanged(object? sender, EventArgs e)
+    {
+        DisplaySelectedPacket();
     }
 
     private void HandlePacketCaptured(object? sender, PacketCapturedEventArgs e)
@@ -269,6 +284,7 @@ public partial class Form1 : Form
     private void ClearPacketDisplay()
     {
         packetListView.Items.Clear();
+        ClearPacketDetails();
         _capturedPackets.Clear();
         Interlocked.Exchange(ref _capturedPacketCount, 0);
         Interlocked.Exchange(ref _droppedDisplayPacketCount, 0);
@@ -290,6 +306,7 @@ public partial class Form1 : Form
         item.SubItems.Add(packet.ProtocolName);
         item.SubItems.Add(packet.CapturedLength.ToString(CultureInfo.InvariantCulture));
         item.SubItems.Add(packet.Summary);
+        item.Tag = displayItem;
         packetListView.Items.Add(item);
     }
 
@@ -380,6 +397,7 @@ public partial class Form1 : Form
     {
         packetListView.BeginUpdate();
         packetListView.Items.Clear();
+        ClearPacketDetails();
 
         try
         {
@@ -396,6 +414,80 @@ public partial class Form1 : Form
         }
 
         UpdatePacketCounters();
+    }
+
+    private void DisplaySelectedPacket()
+    {
+        if (packetListView.SelectedItems.Count == 0 ||
+            packetListView.SelectedItems[0].Tag is not PacketDisplayItem displayItem)
+        {
+            ClearPacketDetails();
+            return;
+        }
+
+        var detailNodes = _packetDetailParser.Parse(displayItem.Packet);
+        packetDetailTreeView.BeginUpdate();
+
+        try
+        {
+            packetDetailTreeView.Nodes.Clear();
+            foreach (var detailNode in detailNodes)
+            {
+                var treeNode = CreateTreeNode(detailNode);
+                packetDetailTreeView.Nodes.Add(treeNode);
+                treeNode.Expand();
+            }
+        }
+        finally
+        {
+            packetDetailTreeView.EndUpdate();
+        }
+
+        hexDumpTextBox.Text = HexDumpFormatter.Format(displayItem.Packet.RawData);
+        hexDumpTextBox.SelectionStart = 0;
+        hexDumpTextBox.SelectionLength = 0;
+    }
+
+    private static TreeNode CreateTreeNode(PacketDetailNode detailNode)
+    {
+        var treeNode = new TreeNode(detailNode.DisplayText);
+        foreach (var child in detailNode.Children)
+        {
+            treeNode.Nodes.Add(CreateTreeNode(child));
+        }
+
+        return treeNode;
+    }
+
+    private void ClearPacketDetails()
+    {
+        packetDetailTreeView.Nodes.Clear();
+        hexDumpTextBox.Clear();
+    }
+
+    private void ApplyInitialSplitterPositions()
+    {
+        var mainMaximum = mainSplitContainer.Height -
+                          mainSplitContainer.Panel2MinSize -
+                          mainSplitContainer.SplitterWidth;
+        if (mainMaximum >= mainSplitContainer.Panel1MinSize)
+        {
+            mainSplitContainer.SplitterDistance = Math.Clamp(
+                (int)(mainSplitContainer.Height * 0.62),
+                mainSplitContainer.Panel1MinSize,
+                mainMaximum);
+        }
+
+        var detailMaximum = detailSplitContainer.Width -
+                            detailSplitContainer.Panel2MinSize -
+                            detailSplitContainer.SplitterWidth;
+        if (detailMaximum >= detailSplitContainer.Panel1MinSize)
+        {
+            detailSplitContainer.SplitterDistance = Math.Clamp(
+                detailSplitContainer.Width / 2,
+                detailSplitContainer.Panel1MinSize,
+                detailMaximum);
+        }
     }
 
     private void UpdatePacketCounters()

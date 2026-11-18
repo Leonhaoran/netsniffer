@@ -23,6 +23,7 @@ partial class Form1
     private Button applyFilterButton = null!;
     private Button resetFilterButton = null!;
     private Label filterResultLabel = null!;
+    private SplitContainer mainSplitContainer = null!;
     private ListView packetListView = null!;
     private ColumnHeader sequenceColumn = null!;
     private ColumnHeader timeColumn = null!;
@@ -31,6 +32,11 @@ partial class Form1
     private ColumnHeader protocolColumn = null!;
     private ColumnHeader lengthColumn = null!;
     private ColumnHeader summaryColumn = null!;
+    private SplitContainer detailSplitContainer = null!;
+    private GroupBox protocolDetailsGroupBox = null!;
+    private TreeView packetDetailTreeView = null!;
+    private GroupBox hexDumpGroupBox = null!;
+    private RichTextBox hexDumpTextBox = null!;
     private StatusStrip statusStrip = null!;
     private ToolStripStatusLabel statusTextLabel = null!;
     private ToolStripStatusLabel statusSpringLabel = null!;
@@ -68,6 +74,7 @@ partial class Form1
         applyFilterButton = new Button();
         resetFilterButton = new Button();
         filterResultLabel = new Label();
+        mainSplitContainer = new SplitContainer();
         packetListView = new ListView();
         sequenceColumn = new ColumnHeader();
         timeColumn = new ColumnHeader();
@@ -76,6 +83,11 @@ partial class Form1
         protocolColumn = new ColumnHeader();
         lengthColumn = new ColumnHeader();
         summaryColumn = new ColumnHeader();
+        detailSplitContainer = new SplitContainer();
+        protocolDetailsGroupBox = new GroupBox();
+        packetDetailTreeView = new TreeView();
+        hexDumpGroupBox = new GroupBox();
+        hexDumpTextBox = new RichTextBox();
         statusStrip = new StatusStrip();
         statusTextLabel = new ToolStripStatusLabel();
         statusSpringLabel = new ToolStripStatusLabel();
@@ -84,6 +96,16 @@ partial class Form1
         rootLayout.SuspendLayout();
         commandPanel.SuspendLayout();
         filterPanel.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)mainSplitContainer).BeginInit();
+        mainSplitContainer.Panel1.SuspendLayout();
+        mainSplitContainer.Panel2.SuspendLayout();
+        mainSplitContainer.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)detailSplitContainer).BeginInit();
+        detailSplitContainer.Panel1.SuspendLayout();
+        detailSplitContainer.Panel2.SuspendLayout();
+        detailSplitContainer.SuspendLayout();
+        protocolDetailsGroupBox.SuspendLayout();
+        hexDumpGroupBox.SuspendLayout();
         statusStrip.SuspendLayout();
         SuspendLayout();
 
@@ -91,7 +113,7 @@ partial class Form1
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         rootLayout.Controls.Add(commandPanel, 0, 0);
         rootLayout.Controls.Add(filterPanel, 0, 1);
-        rootLayout.Controls.Add(packetListView, 0, 2);
+        rootLayout.Controls.Add(mainSplitContainer, 0, 2);
         rootLayout.Controls.Add(statusStrip, 0, 3);
         rootLayout.Dock = DockStyle.Fill;
         rootLayout.RowCount = 4;
@@ -192,6 +214,18 @@ partial class Form1
         filterResultLabel.Margin = new Padding(0, 6, 0, 0);
         filterResultLabel.Text = "保留：0";
 
+        mainSplitContainer.Dock = DockStyle.Fill;
+        mainSplitContainer.Location = new Point(0, 106);
+        mainSplitContainer.Name = "mainSplitContainer";
+        mainSplitContainer.Orientation = Orientation.Horizontal;
+        mainSplitContainer.Panel1.Controls.Add(packetListView);
+        mainSplitContainer.Panel1MinSize = 160;
+        mainSplitContainer.Panel2.Controls.Add(detailSplitContainer);
+        mainSplitContainer.Panel2MinSize = 170;
+        mainSplitContainer.Size = new Size(1_180, 626);
+        mainSplitContainer.SplitterDistance = 330;
+        mainSplitContainer.SplitterWidth = 6;
+
         packetListView.Columns.AddRange([
             sequenceColumn,
             timeColumn,
@@ -222,6 +256,37 @@ partial class Form1
         summaryColumn.Text = "信息";
         summaryColumn.Width = 420;
 
+        detailSplitContainer.Dock = DockStyle.Fill;
+        detailSplitContainer.Name = "detailSplitContainer";
+        detailSplitContainer.Panel1.Controls.Add(protocolDetailsGroupBox);
+        detailSplitContainer.Panel1MinSize = 300;
+        detailSplitContainer.Panel2.Controls.Add(hexDumpGroupBox);
+        detailSplitContainer.Panel2MinSize = 300;
+        detailSplitContainer.Size = new Size(1_180, 290);
+        detailSplitContainer.SplitterDistance = 500;
+        detailSplitContainer.SplitterWidth = 6;
+
+        protocolDetailsGroupBox.Controls.Add(packetDetailTreeView);
+        protocolDetailsGroupBox.Dock = DockStyle.Fill;
+        protocolDetailsGroupBox.Padding = new Padding(8);
+        protocolDetailsGroupBox.Text = "协议详情";
+
+        packetDetailTreeView.Dock = DockStyle.Fill;
+        packetDetailTreeView.HideSelection = false;
+        packetDetailTreeView.Name = "packetDetailTreeView";
+
+        hexDumpGroupBox.Controls.Add(hexDumpTextBox);
+        hexDumpGroupBox.Dock = DockStyle.Fill;
+        hexDumpGroupBox.Padding = new Padding(8);
+        hexDumpGroupBox.Text = "原始数据（Hex / ASCII）";
+
+        hexDumpTextBox.BackColor = SystemColors.Window;
+        hexDumpTextBox.DetectUrls = false;
+        hexDumpTextBox.Dock = DockStyle.Fill;
+        hexDumpTextBox.Font = new Font("Consolas", 9F);
+        hexDumpTextBox.ReadOnly = true;
+        hexDumpTextBox.WordWrap = false;
+
         statusStrip.Dock = DockStyle.Fill;
         statusStrip.Items.AddRange([statusTextLabel, statusSpringLabel, packetCountLabel]);
         statusTextLabel.Text = "准备就绪";
@@ -232,9 +297,9 @@ partial class Form1
 
         AutoScaleDimensions = new SizeF(7F, 17F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(1_100, 650);
+        ClientSize = new Size(1_180, 760);
         Controls.Add(rootLayout);
-        MinimumSize = new Size(950, 500);
+        MinimumSize = new Size(1_000, 620);
         Name = "Form1";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "NetSniffer - 网络嗅探器";
@@ -244,6 +309,16 @@ partial class Form1
         commandPanel.PerformLayout();
         filterPanel.ResumeLayout(false);
         filterPanel.PerformLayout();
+        mainSplitContainer.Panel1.ResumeLayout(false);
+        mainSplitContainer.Panel2.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)mainSplitContainer).EndInit();
+        mainSplitContainer.ResumeLayout(false);
+        detailSplitContainer.Panel1.ResumeLayout(false);
+        detailSplitContainer.Panel2.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)detailSplitContainer).EndInit();
+        detailSplitContainer.ResumeLayout(false);
+        protocolDetailsGroupBox.ResumeLayout(false);
+        hexDumpGroupBox.ResumeLayout(false);
         statusStrip.ResumeLayout(false);
         statusStrip.PerformLayout();
         ResumeLayout(false);
