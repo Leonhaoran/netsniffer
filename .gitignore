@@ -10,13 +10,18 @@ publish/
 
 # Visual Studio and IDE user state
 .vs/
-.vscode/
 .idea/
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
 *.rsuser
+
+# Keep shared VS Code configuration only
+.vscode/*
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
 
 # .NET and NuGet
 packages/
