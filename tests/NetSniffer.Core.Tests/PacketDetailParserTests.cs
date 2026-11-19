@@ -49,7 +49,8 @@ public class PacketDetailParserTests
         var result = new PacketDetailParser().Parse(record);
 
         Assert.Contains(result, node => node.Name == "Ethernet II");
-        Assert.Contains(result, node => node.Name == "Internet Protocol Version 4");
+        var ipv4Node = Assert.Single(result, node => node.Name == "Internet Protocol Version 4");
+        Assert.Contains(ipv4Node.Children, node => node.DisplayText == "Header length: 20 bytes");
         var tcpNode = Assert.Single(result, node => node.Name == "Transmission Control Protocol");
         Assert.Contains(tcpNode.Children, node => node.DisplayText.Contains("12345", StringComparison.Ordinal));
         Assert.Contains(tcpNode.Children, node => node.DisplayText.Contains("SYN", StringComparison.Ordinal));

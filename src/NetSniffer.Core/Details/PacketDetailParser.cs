@@ -104,7 +104,7 @@ public sealed class PacketDetailParser : IPacketDetailParser
         var children = new List<PacketDetailNode>
         {
             new("Version", packet.Version.ToString()),
-            new("Header length", $"{packet.HeaderLength} bytes"),
+            new("Header length", $"{packet.HeaderLength * 4} bytes"),
             new("Total length", $"{packet.TotalLength} bytes"),
             new("Time to live / Hop limit", packet.TimeToLive.ToString(CultureInfo.InvariantCulture)),
             new("Protocol", packet.Protocol.ToString()),
