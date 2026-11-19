@@ -13,9 +13,9 @@ namespace NetSniffer.App;
 public partial class Form1 : Form
 {
     private const int MaximumVisiblePackets = 2_000;
-    private const int MaximumPendingPackets = 5_000;
+    private const int MaximumPendingPackets = 1_000;
     private const int MaximumPacketsPerRefresh = 250;
-    private const int MaximumRetainedPackets = 10_000;
+    private const int MaximumRetainedPackets = 5_000;
 
     private readonly ICaptureDeviceCatalog _deviceCatalog;
     private readonly IPacketCaptureService _captureService;
@@ -112,9 +112,9 @@ public partial class Form1 : Form
         }
     }
 
-    private void HandleStopClick(object? sender, EventArgs e)
+    private async void HandleStopClick(object? sender, EventArgs e)
     {
-        StopCapture(showErrorDialog: true);
+        await StopCaptureAsync(showErrorDialog: true);
     }
 
     private void HandleClearClick(object? sender, EventArgs e)
@@ -209,7 +209,8 @@ public partial class Form1 : Form
                 return;
             }
 
-            DrainPendingPackets(int.MaxValue);
+            DrainPendingPackets(MaximumPacketsPerRefresh);
+            DiscardPendingPackets();
             SetCaptureState(false);
             statusTextLabel.Text = e.CompletedWithoutError ? "抓包已停止" : "抓包异常停止";
         });
@@ -282,7 +283,35 @@ public partial class Form1 : Form
         try
         {
             _captureService.StopCapture();
-            DrainPendingPackets(int.MaxValue);
+            DrainPendingPackets(MaximumPacketsPerRefresh);
+            DiscardPendingPackets();
+            SetCaptureState(false);
+            statusTextLabel.Text = "抓包已停止";
+        }
+        catch (Exception exception)
+        {
+            SetCaptureState(false);
+            statusTextLabel.Text = "停止抓包时发生错误";
+
+            if (showErrorDialog)
+            {
+                ShowCaptureError("无法正常停止抓包", exception);
+            }
+        }
+    }
+
+    private async Task StopCaptureAsync(bool showErrorDialog)
+    {
+        Interlocked.Exchange(ref _acceptPackets, 0);
+        uiTimer.Stop();
+        stopButton.Enabled = false;
+        statusTextLabel.Text = "正在停止抓包...";
+
+        try
+        {
+            await Task.Run(_captureService.StopCapture);
+            DrainPendingPackets(MaximumPacketsPerRefresh);
+            DiscardPendingPackets();
             SetCaptureState(false);
             statusTextLabel.Text = "抓包已停止";
         }
@@ -368,6 +397,16 @@ public partial class Form1 : Form
         finally
         {
             packetListView.EndUpdate();
+        }
+
+        UpdatePacketCounters();
+    }
+
+    private void DiscardPendingPackets()
+    {
+        while (_pendingPackets.TryDequeue(out _))
+        {
+            Interlocked.Increment(ref _droppedDisplayPacketCount);
         }
 
         UpdatePacketCounters();
