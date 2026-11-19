@@ -13,6 +13,8 @@ partial class Form1
     private Button startButton = null!;
     private Button stopButton = null!;
     private Button clearButton = null!;
+    private Button followTcpStreamButton = null!;
+    private Button clearTcpStreamButton = null!;
     private FlowLayoutPanel filterPanel = null!;
     private Label protocolFilterLabel = null!;
     private ComboBox protocolFilterComboBox = null!;
@@ -64,6 +66,8 @@ partial class Form1
         startButton = new Button();
         stopButton = new Button();
         clearButton = new Button();
+        followTcpStreamButton = new Button();
+        clearTcpStreamButton = new Button();
         filterPanel = new FlowLayoutPanel();
         protocolFilterLabel = new Label();
         protocolFilterComboBox = new ComboBox();
@@ -128,6 +132,8 @@ partial class Form1
         commandPanel.Controls.Add(startButton);
         commandPanel.Controls.Add(stopButton);
         commandPanel.Controls.Add(clearButton);
+        commandPanel.Controls.Add(followTcpStreamButton);
+        commandPanel.Controls.Add(clearTcpStreamButton);
         commandPanel.Dock = DockStyle.Fill;
         commandPanel.FlowDirection = FlowDirection.LeftToRight;
         commandPanel.Padding = new Padding(10, 11, 10, 8);
@@ -159,9 +165,21 @@ partial class Form1
         stopButton.UseVisualStyleBackColor = true;
 
         clearButton.AutoSize = true;
-        clearButton.Margin = new Padding(0);
+        clearButton.Margin = new Padding(0, 0, 8, 0);
         clearButton.Text = "清空";
         clearButton.UseVisualStyleBackColor = true;
+
+        followTcpStreamButton.AutoSize = true;
+        followTcpStreamButton.Enabled = false;
+        followTcpStreamButton.Margin = new Padding(0, 0, 8, 0);
+        followTcpStreamButton.Text = "追踪 TCP 流";
+        followTcpStreamButton.UseVisualStyleBackColor = true;
+
+        clearTcpStreamButton.AutoSize = true;
+        clearTcpStreamButton.Enabled = false;
+        clearTcpStreamButton.Margin = new Padding(0);
+        clearTcpStreamButton.Text = "退出追踪";
+        clearTcpStreamButton.UseVisualStyleBackColor = true;
 
         filterPanel.Controls.Add(protocolFilterLabel);
         filterPanel.Controls.Add(protocolFilterComboBox);

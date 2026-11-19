@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using NetSniffer.Core.Details;
 using NetSniffer.Core.Filtering;
+using NetSniffer.Core.Flows;
 using NetSniffer.Core.Models;
 using NetSniffer.Core.Parsing;
 using NetSniffer.Core.Services;
@@ -23,6 +24,7 @@ public partial class Form1 : Form
     private readonly ConcurrentQueue<PacketDisplayItem> _pendingPackets = new();
     private readonly List<PacketDisplayItem> _capturedPackets = [];
     private PacketFilter _activeFilter = PacketFilter.All;
+    private TcpFlowKey? _trackedTcpFlow;
     private long _capturedPacketCount;
     private long _droppedDisplayPacketCount;
     private int _acceptPackets;
@@ -56,6 +58,8 @@ public partial class Form1 : Form
         startButton.Click += HandleStartClick;
         stopButton.Click += HandleStopClick;
         clearButton.Click += HandleClearClick;
+        followTcpStreamButton.Click += HandleFollowTcpStreamClick;
+        clearTcpStreamButton.Click += HandleClearTcpStreamClick;
         applyFilterButton.Click += HandleApplyFilterClick;
         resetFilterButton.Click += HandleResetFilterClick;
         packetListView.SelectedIndexChanged += HandlePacketSelectionChanged;
@@ -135,6 +139,27 @@ public partial class Form1 : Form
     private void HandlePacketSelectionChanged(object? sender, EventArgs e)
     {
         DisplaySelectedPacket();
+        UpdateTcpStreamButtons();
+    }
+
+    private void HandleFollowTcpStreamClick(object? sender, EventArgs e)
+    {
+        if (!TryGetSelectedPacket(out var selectedPacket) ||
+            !TcpFlowKey.TryCreate(selectedPacket.Packet, out var flowKey))
+        {
+            return;
+        }
+
+        _trackedTcpFlow = flowKey;
+        ApplyFilterToVisiblePackets();
+        statusTextLabel.Text = $"正在追踪 TCP 流：{flowKey.DisplayName}";
+    }
+
+    private void HandleClearTcpStreamClick(object? sender, EventArgs e)
+    {
+        _trackedTcpFlow = null;
+        ApplyFilterToVisiblePackets();
+        statusTextLabel.Text = "已退出 TCP 流追踪";
     }
 
     private void HandlePacketCaptured(object? sender, PacketCapturedEventArgs e)
@@ -286,6 +311,7 @@ public partial class Form1 : Form
         packetListView.Items.Clear();
         ClearPacketDetails();
         _capturedPackets.Clear();
+        _trackedTcpFlow = null;
         Interlocked.Exchange(ref _capturedPacketCount, 0);
         Interlocked.Exchange(ref _droppedDisplayPacketCount, 0);
 
@@ -294,6 +320,7 @@ public partial class Form1 : Form
         }
 
         UpdatePacketCounters();
+        UpdateTcpStreamButtons();
     }
 
     private void AddPacketToList(PacketDisplayItem displayItem)
@@ -320,7 +347,7 @@ public partial class Form1 : Form
             while (processed < maximumPackets && _pendingPackets.TryDequeue(out var displayItem))
             {
                 _capturedPackets.Add(displayItem);
-                if (_activeFilter.Matches(displayItem.Packet))
+                if (MatchesCurrentView(displayItem.Packet))
                 {
                     AddPacketToList(displayItem);
                 }
@@ -402,7 +429,7 @@ public partial class Form1 : Form
         try
         {
             foreach (var displayItem in _capturedPackets
-                         .Where(item => _activeFilter.Matches(item.Packet))
+                         .Where(item => MatchesCurrentView(item.Packet))
                          .TakeLast(MaximumVisiblePackets))
             {
                 AddPacketToList(displayItem);
@@ -414,12 +441,18 @@ public partial class Form1 : Form
         }
 
         UpdatePacketCounters();
+        UpdateTcpStreamButtons();
+    }
+
+    private bool MatchesCurrentView(PacketRecord packet)
+    {
+        return _activeFilter.Matches(packet) &&
+               (_trackedTcpFlow is not TcpFlowKey flowKey || flowKey.Matches(packet));
     }
 
     private void DisplaySelectedPacket()
     {
-        if (packetListView.SelectedItems.Count == 0 ||
-            packetListView.SelectedItems[0].Tag is not PacketDisplayItem displayItem)
+        if (!TryGetSelectedPacket(out var displayItem))
         {
             ClearPacketDetails();
             return;
@@ -446,6 +479,27 @@ public partial class Form1 : Form
         hexDumpTextBox.Text = HexDumpFormatter.Format(displayItem.Packet.RawData);
         hexDumpTextBox.SelectionStart = 0;
         hexDumpTextBox.SelectionLength = 0;
+    }
+
+    private bool TryGetSelectedPacket(out PacketDisplayItem displayItem)
+    {
+        if (packetListView.SelectedItems.Count > 0 &&
+            packetListView.SelectedItems[0].Tag is PacketDisplayItem selectedPacket)
+        {
+            displayItem = selectedPacket;
+            return true;
+        }
+
+        displayItem = null!;
+        return false;
+    }
+
+    private void UpdateTcpStreamButtons()
+    {
+        followTcpStreamButton.Enabled =
+            TryGetSelectedPacket(out var selectedPacket) &&
+            TcpFlowKey.TryCreate(selectedPacket.Packet, out _);
+        clearTcpStreamButton.Enabled = _trackedTcpFlow.HasValue;
     }
 
     private static TreeNode CreateTreeNode(PacketDetailNode detailNode)
@@ -497,7 +551,10 @@ public partial class Form1 : Form
         packetCountLabel.Text = dropped == 0
             ? $"已捕获：{captured:N0}，显示：{packetListView.Items.Count:N0}"
             : $"已捕获：{captured:N0}，显示：{packetListView.Items.Count:N0}，界面丢弃：{dropped:N0}";
-        filterResultLabel.Text = $"保留：{_capturedPackets.Count:N0}";
+        var retainedCount = _capturedPackets.Count(item => MatchesCurrentView(item.Packet));
+        filterResultLabel.Text = _trackedTcpFlow is TcpFlowKey flowKey
+            ? $"TCP 流：{flowKey.DisplayName}，保留：{retainedCount:N0}"
+            : $"保留：{retainedCount:N0}";
     }
 
     private void ShowCaptureError(string title, Exception exception)
